@@ -16,11 +16,11 @@ using System.Windows.Shapes;
 namespace TpacTool
 {
 	/// <summary>
-	/// TexturePreviewPage.xaml 的交互逻辑
+	/// AnimationPage.xaml 的交互逻辑
 	/// </summary>
-	public partial class TexturePreviewPage : Page
+	public partial class AnimationPage : Page
 	{
-		public TexturePreviewPage()
+		public AnimationPage()
 		{
 			InitializeComponent();
 		}

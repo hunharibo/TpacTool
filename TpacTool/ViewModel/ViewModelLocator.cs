@@ -12,6 +12,10 @@
   See http://www.galasoft.ch/mvvm
 */
 
+using System;
+using System.IO;
+using System.Windows;
+using Assimp.Unmanaged;
 using CommonServiceLocator;
 using GalaSoft.MvvmLight;
 using GalaSoft.MvvmLight.Ioc;
@@ -23,113 +27,62 @@ namespace TpacTool
 	/// application and provides an entry point for the bindings.
 	/// </summary>
 	public class ViewModelLocator
-    {
-        /// <summary>
+	{
+		/// <summary>
         /// Initializes a new instance of the ViewModelLocator class.
         /// </summary>
         public ViewModelLocator()
         {
             ServiceLocator.SetLocatorProvider(() => SimpleIoc.Default);
 
-            ////if (ViewModelBase.IsInDesignModeStatic)
-            ////{
-            ////    // Create design time view services and models
-            ////    SimpleIoc.Default.Register<IDataService, DesignDataService>();
-            ////}
-            ////else
-            ////{
-            ////    // Create run time view services and models
-            ////    SimpleIoc.Default.Register<IDataService, DataService>();
-            ////}
+			////if (ViewModelBase.IsInDesignModeStatic)
+			////{
+			////    // Create design time view services and models
+			////    SimpleIoc.Default.Register<IDataService, DesignDataService>();
+			////}
+			////else
+			////{
+			////    // Create run time view services and models
+			////    SimpleIoc.Default.Register<IDataService, DataService>();
+			////}
 
-            SimpleIoc.Default.Register<MainViewModel>();
+			AssimpLibrary.Instance.Resolver.SetProbingPaths32(
+				Path.Combine(Environment.CurrentDirectory, "bin\\win-x86\\native\\"));
+			AssimpLibrary.Instance.Resolver.SetProbingPaths64(
+				Path.Combine(Environment.CurrentDirectory, "bin\\win-x64\\native\\"));
+			AssimpLibrary.Instance.Resolver.SetFallbackLibraryNames32("assimp.dll");
+			AssimpLibrary.Instance.Resolver.SetFallbackLibraryNames64("assimp.dll");
+
+			SimpleIoc.Default.Register<MainViewModel>();
             SimpleIoc.Default.Register<LoadingViewModel>();
-            //SimpleIoc.Default.Register<ModelPreviewViewModel>();
-            SimpleIoc.Default.Register<TexturePreviewViewModel>();
 			SimpleIoc.Default.Register<ModelViewModel>();
 			SimpleIoc.Default.Register<TextureViewModel>();
 			SimpleIoc.Default.Register<MaterialViewModel>();
-			SimpleIoc.Default.Register<WpfPreviewViewModel>();
+			SimpleIoc.Default.Register<AnimationViewModel>();
+			SimpleIoc.Default.Register<OglPreviewViewModel>();
+			
+			ViewModelBase unused = null;
 			// force init preview and panel
-			//ViewModelBase unused = ModelPreview;
-			ViewModelBase unused = WpfPreview;
-			unused = TexturePreview;
+			unused = OglPreview;
 			unused = Model;
 			unused = Texture;
 			unused = Material;
+			unused = Animation;
 		}
 
-        public MainViewModel Main
-        {
-            get
-            {
-                return ServiceLocator.Current.GetInstance<MainViewModel>();
-            }
-        }
+        public MainViewModel Main => ServiceLocator.Current.GetInstance<MainViewModel>();
 
-		public LoadingViewModel Loading
-		{
-			get
-			{
-				return ServiceLocator.Current.GetInstance<LoadingViewModel>();
-			}
-		}
+        public LoadingViewModel Loading => ServiceLocator.Current.GetInstance<LoadingViewModel>();
+		
+		public OglPreviewViewModel OglPreview => ServiceLocator.Current.GetInstance<OglPreviewViewModel>();
 
-		/*public ModelPreviewViewModel ModelPreview
-		{
-			get
-			{
-				return ServiceLocator.Current.GetInstance<ModelPreviewViewModel>();
-			}
-		}*/
+		public ModelViewModel Model => ServiceLocator.Current.GetInstance<ModelViewModel>();
 
-		public TexturePreviewViewModel TexturePreview
-		{
-			get
-			{
-				return ServiceLocator.Current.GetInstance<TexturePreviewViewModel>();
-			}
-		}
+		public TextureViewModel Texture => ServiceLocator.Current.GetInstance<TextureViewModel>();
 
-		public WpfPreviewViewModel WpfPreview
-		{
-			get
-			{
-				return ServiceLocator.Current.GetInstance<WpfPreviewViewModel>();
-			}
-		}
+		public MaterialViewModel Material => ServiceLocator.Current.GetInstance<MaterialViewModel>();
 
-		public AbstractPreviewViewModel ModelPreview
-		{
-			get
-			{
-				return WpfPreview;
-			}
-		}
-
-		public ModelViewModel Model
-		{
-			get
-			{
-				return ServiceLocator.Current.GetInstance<ModelViewModel>();
-			}
-		}
-
-		public TextureViewModel Texture
-		{
-			get
-			{
-				return ServiceLocator.Current.GetInstance<TextureViewModel>();
-			}
-		}
-
-		public MaterialViewModel Material
-		{
-			get
-			{
-				return ServiceLocator.Current.GetInstance<MaterialViewModel>();
-			}
-		}
+		public AnimationViewModel Animation => ServiceLocator.Current.GetInstance<AnimationViewModel>();
 
 		public static void Cleanup()
         {

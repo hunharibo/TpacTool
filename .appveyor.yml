@@ -1,10 +1,10 @@
-version: 0.3.2.{build}
+version: 0.4.0.{build}
 
 environment:
-  exe_version: 0.3.2
-  lib_version: 0.3.2
+  exe_version: 0.4.0
+  lib_version: 0.4.0
   github_token:
-    secure: jOTXxzUtlwQDuTuXm9bA/ZKqWOAsu8aiEkBZIor/Fh4j6I9SULqFq9uTCkFDNuh1
+    secure: TXxOh3NI3UV0tNKI9snSVmZPFKvpqfhJgDpr7M9GDLS9DSX32P9NGdjIWVwYX+Mc
   appveyor_token:
     secure: IV7vyJWe55+8yxcfF7+dUEHN2b4yGL0RDsgH9T7kZQE=
 
@@ -25,14 +25,14 @@ assembly_info:
 
 dotnet_csproj:
   patch: true
-  file: '**\TpacTool.Lib.csproj;**\TpacTool.IO.csproj'
+  file: '**\TpacTool.Lib.csproj;**\TpacTool.IO.csproj;**\TpacTool.IO.Assimp.csproj'
   version: $(lib_version)
   package_version: $(lib_version)
   assembly_version: $(lib_version)
   file_version: $(lib_version)
   informational_version: $(lib_version)
 
-image: Visual Studio 2017
+image: Visual Studio 2022
 configuration: Release
 platform: Any CPU
 

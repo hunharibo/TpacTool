@@ -14,6 +14,8 @@ using GalaSoft.MvvmLight.Ioc;
 using GalaSoft.MvvmLight.Messaging;
 using GalaSoft.MvvmLight.Threading;
 using Ookii.Dialogs.Wpf;
+using TpacTool.IO;
+using TpacTool.IO.Assimp;
 using TpacTool.Lib;
 using TpacTool.Properties;
 using Application = System.Windows.Application;
@@ -32,19 +34,25 @@ namespace TpacTool
 
 		private static readonly Uri Uri_Page_Model = new Uri("../Page/ModelPage.xaml", UriKind.Relative);
 
-		//private static readonly Uri Uri_Page_ModelPreview = new Uri("../Page/ModelPreviewPage.xaml", UriKind.Relative);
-
 		private static readonly Uri Uri_Page_Texture = new Uri("../Page/TexturePage.xaml", UriKind.Relative);
 
-		private static readonly Uri Uri_Page_TexturePreview = new Uri("../Page/TexturePreviewPage.xaml", UriKind.Relative);
+		private static readonly Uri Uri_Page_OglPreview = new Uri("../Page/OglPreviewPage.xaml", UriKind.Relative);
 
 		private static readonly Uri Uri_Page_Material = new Uri("../Page/MaterialPage.xaml", UriKind.Relative);
+
+		private static readonly Uri Uri_Page_Animation = new Uri("../Page/AnimationPage.xaml", UriKind.Relative);
+
+		private static readonly Uri Uri_Page_Morph = new Uri("../Page/MorphPage.xaml", UriKind.Relative);
 
 		public static readonly Guid CleanupEvent = Guid.NewGuid();
 
 		public static readonly Guid StatusEvent = Guid.NewGuid();
 
-		private string _statusMsg = String.Empty;
+		private int _statusRepeatCount = 0;
+
+		private string _rawStatusMsg = null;
+
+		private string _statusMsg = string.Empty;
 
 		private volatile bool _interruptLoading = false;
 
@@ -82,7 +90,20 @@ namespace TpacTool
 		{
 			set
 			{
-				_statusMsg = value;
+				if (!string.IsNullOrEmpty(value))
+				{
+					if (_rawStatusMsg == value)
+					{
+						_statusRepeatCount++;
+						value = value + $" (x{_statusRepeatCount})";
+					}
+					else
+					{
+						_statusRepeatCount = 1;
+						_rawStatusMsg = value;
+					}
+				}
+				_statusMsg = value ?? String.Empty;
 				RaisePropertyChanged("StatusMsg");
 			}
 			get { return _statusMsg; }
@@ -151,7 +172,7 @@ namespace TpacTool
 					MessageBox.Show("Cannot init assimp. Model exporting is unavailable", "Warning",
 						MessageBoxButton.OK, MessageBoxImage.Warning);
 				}*/
-			}
+            }
         }
 
 		private void OpenAssetFolder()
@@ -228,8 +249,6 @@ namespace TpacTool
 
 		private void BeforeLoad()
 		{
-			ModelViewModel._skeletons.Clear();
-			ResourceCache.Cleanup();
 			MessengerInstance.Send<object>(null, CleanupEvent);
 			foreach (var tabItem in TabPages)
 			{
@@ -296,10 +315,14 @@ namespace TpacTool
 				});
 			}
 
-			MessengerInstance.Send(AssetManager.LoadedAssets.Where(asset =>
-			{
-				return asset.Type == Skeleton.TYPE_GUID && !asset.Name.Contains("notused");
-			}).Cast<Skeleton>(), ModelViewModel.UpdateSkeletonListEvent);
+			MessengerInstance.Send(AssetManager.LoadedAssets
+				.Where(asset => asset.Type == Skeleton.TYPE_GUID && !asset.Name.Contains("notused"))
+				.Cast<Skeleton>().OrderBy(skeleton => skeleton.Name) as IEnumerable<Skeleton>, ModelViewModel.UpdateSkeletonListEvent);
+
+			MessengerInstance.Send(AssetManager.LoadedAssets
+				.Where(asset => asset.Type == Metamesh.TYPE_GUID)
+				.Cast<Metamesh>().OrderBy(metamesh => metamesh.Name) as IEnumerable<Metamesh>, ModelViewModel.UpdateModelListEvent);
+
 			for (var i = 0; i < typeNames.Length; i++)
 			{
 				var name = typeNames[i];
@@ -382,7 +405,7 @@ namespace TpacTool
 				if (AssetPanelUri != Uri_Page_Model)
 				{
 					AssetPanelUri = Uri_Page_Model;
-					AssetPreviewUri = ServiceLocator.Current.GetInstance<WpfPreviewViewModel>().PageUri;
+					AssetPreviewUri = Uri_Page_OglPreview;
 				}
 				hasContent = true;
 			}
@@ -393,7 +416,7 @@ namespace TpacTool
 				if (AssetPanelUri != Uri_Page_Texture)
 				{
 					AssetPanelUri = Uri_Page_Texture;
-					AssetPreviewUri = Uri_Page_TexturePreview;
+					AssetPreviewUri = Uri_Page_OglPreview;
 				}
 				hasContent = true;
 			}
@@ -404,7 +427,27 @@ namespace TpacTool
 				if (AssetPanelUri != Uri_Page_Material)
 				{
 					AssetPanelUri = Uri_Page_Material;
-					AssetPreviewUri = Uri_Page_TexturePreview;
+					AssetPreviewUri = Uri_Page_OglPreview;
+				}
+				hasContent = true;
+			}
+
+			if (asset is SkeletalAnimation animation)
+			{
+				if (AssetPanelUri != Uri_Page_Animation)
+				{
+					AssetPanelUri = Uri_Page_Animation;
+					AssetPreviewUri = Uri_Page_BlankPreview;
+				}
+				hasContent = true;
+			}
+
+			if (asset is MorphAnimation morph)
+			{
+				if (AssetPanelUri != Uri_Page_Morph)
+				{
+					AssetPanelUri = Uri_Page_Morph;
+					AssetPreviewUri = Uri_Page_BlankPreview;
 				}
 				hasContent = true;
 			}

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Numerics;
 using JetBrains.Annotations;
 using TpacTool.Lib;
 
@@ -8,25 +9,59 @@ namespace TpacTool.IO
 {
 	public static class ModelExporter
 	{
-		public static void ExportToFile([NotNull] string path, [NotNull] Metamesh model,
-			[CanBeNull] Skeleton skeleton, ModelExportOption option = 0)
+		public static void ExportToFile([NotNull] string path, [CanBeNull] Metamesh model,
+			[CanBeNull] Skeleton skeleton = null, ModelExportOption option = 0)
+		{
+			ExportToFile(path, model, skeleton, null, null, option);
+		}
+
+		public static void ExportToFile([NotNull] string path, [CanBeNull] Metamesh model,
+			[CanBeNull] Skeleton skeleton = null, 
+			[CanBeNull] SkeletalAnimation animation = null, [CanBeNull] MorphAnimation morph = null,
+			ModelExportOption option = 0)
 		{
 			if (path.EndsWith(".obj", StringComparison.OrdinalIgnoreCase))
-				ExportToFile<WavefrontExporter>(path, model, skeleton, option);
+				ExportToFile<WavefrontExporter>(path, model, skeleton, animation, morph, option);
 			else if (path.EndsWith(".dae", StringComparison.OrdinalIgnoreCase))
-				ExportToFile<ColladaExporter>(path, model, skeleton, option);
+				ExportToFile<ColladaExporter>(path, model, skeleton, animation, morph, option);
 			else
 				throw new FormatException("Unsupported export format");
 		}
 
-		public static void ExportToFile<T>([NotNull] string path, [NotNull] Metamesh model,
-			[CanBeNull] Skeleton skeleton, ModelExportOption option = 0)
+		public static void ExportToFile<T>([NotNull] string path, [CanBeNull] Metamesh model,
+			[CanBeNull] Skeleton skeleton = null, ModelExportOption option = 0)
+			where T : AbstractModelExporter, new()
+		{
+			ExportToFile<T>(path, model, skeleton, null, null, option);
+		}
+
+		public static void ExportToFile<T>([NotNull] string path, [CanBeNull] Metamesh model,
+			[CanBeNull] Skeleton skeleton = null, 
+			[CanBeNull] SkeletalAnimation animation = null, [CanBeNull] MorphAnimation morph = null,
+			ModelExportOption option = 0)
 			where T : AbstractModelExporter, new()
 		{
 			T exporter = new T();
+			ExportToFile(exporter, path, model, skeleton, animation, morph, option);
+		}
+
+		public static void ExportToFile([NotNull] AbstractModelExporter exporter, [NotNull] string path, [CanBeNull] Metamesh model,
+			[CanBeNull] Skeleton skeleton = null, 
+			[CanBeNull] SkeletalAnimation animation = null, [CanBeNull] MorphAnimation morph = null,
+			ModelExportOption option = 0)
+		{
+			if (model == null)
+				model = Metamesh.EmptyMesh;
+
 			var dirPath = Path.GetDirectoryName(path) + "/";
 
-			var exportedMeshes = model.Meshes.FindAll(mesh => mesh.Lod == 0);
+			var exportedMeshes = model.Meshes;
+			var lodMask = int.MaxValue;
+			if (!option.HasFlag(ModelExportOption.ExportAllLod))
+			{
+				lodMask = 1;
+				exportedMeshes = exportedMeshes.FindAll(mesh => mesh.Lod == 0);
+			}
 			HashSet<Texture> textures = new HashSet<Texture>();
 			foreach (var mesh in exportedMeshes)
 			{
@@ -64,6 +99,9 @@ namespace TpacTool.IO
 
 			exporter.Model = model;
 			exporter.Skeleton = skeleton;
+			exporter.Animation = animation;
+			exporter.Morph = morph;
+			exporter.LodMask = lodMask;
 			exporter.FixBoneForBlender = option.HasFlag(ModelExportOption.FixBoneForBlender);
 			exporter.IsNegYAxisForward = option.HasFlag(ModelExportOption.NegYAxisForward);
 			exporter.IsYAxisUp = option.HasFlag(ModelExportOption.YAxisUp);
@@ -92,8 +130,9 @@ namespace TpacTool.IO
 			ExportTexturesSubFolder = 0x2000,
 			ExportDiffuseOnly = 0x4000,
 			FixBoneForBlender = 0x10000,
-			PreferPng = 0x100000,
-			PreferDds = 0x200000
+			PreferPng = 0x20000,
+			PreferDds = 0x40000,
+			ExportAllLod = 0x100000
 		}
 	}
 }

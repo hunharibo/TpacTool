@@ -122,7 +122,7 @@ namespace TpacTool.Lib
 				ExposureCompensation = 1f;
 			}
 
-			internal void Load(BinaryReader stream, uint subVersion = 1)
+			internal void Load(BinaryReader stream, uint subVersion = 2)
 			{
 				AreamapScale = stream.ReadSingle();
 				AreamapAmount = stream.ReadSingle();
@@ -140,7 +140,8 @@ namespace TpacTool.Lib
 				if (subVersion >= 1)
 					ParallaxOffset = stream.ReadSingle();
 				AmbientOcclusionCoef = stream.ReadSingle();
-				ExposureCompensation = stream.ReadSingle();
+				if (subVersion >= 2) // since 1.8.0
+					ExposureCompensation = stream.ReadSingle();
 			}
 		}
 	}

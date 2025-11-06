@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
+using System.Text.RegularExpressions;
 using TpacTool.Lib;
 
 namespace TpacTool.IO
@@ -12,9 +13,16 @@ namespace TpacTool.IO
 
 		protected static readonly Matrix4x4 NegYMatrix = Matrix4x4.CreateRotationZ((float) Math.PI);
 
+		private static Regex _meshNameRegex = new Regex("\\.lod(\\d+)",
+			RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
 		public Skeleton Skeleton { set; get; }
 
 		public Metamesh Model { set; get; }
+
+		public SkeletalAnimation Animation { set; get; }
+
+		public MorphAnimation Morph { set; get; }
 
 		public bool FixBoneForBlender { set; get; } = true;
 
@@ -26,7 +34,7 @@ namespace TpacTool.IO
 
 		public bool IsDiffuseOnly { set; get; } = false;
 
-		public int SelectedLod { set; get; } = 0;
+		public int LodMask { set; get; } = 1;
 
 		//public bool IgnoreMaterial { set; get; } = false;
 
@@ -44,6 +52,19 @@ namespace TpacTool.IO
 
 		public abstract bool SupportsMorph { get; }
 
+		public abstract bool SupportsSkeletalAnimation { get; }
+
+		public abstract bool SupportMorphAnimation { get; }
+
+		public virtual float AnimationFrameRate { set; get; } = 24f;
+
+		public bool ForceExportWeight { set; get; } = false;
+
+		protected bool IgnoreScale { get => Skeleton?.UserData != null && 
+		                                    (Skeleton.UserData.Data.Usage == SkeletonUserData.USAGE_HUMAN ||
+		                                     Skeleton.UserData.Data.Usage == SkeletonUserData.USAGE_HORSE);
+		}
+
 		protected AbstractModelExporter()
 		{
 			TexturePathMapping = new Dictionary<Texture, string>();
@@ -51,7 +72,9 @@ namespace TpacTool.IO
 
 		public virtual void Export(string path)
 		{
-			Directory.CreateDirectory(Directory.GetParent(path).FullName);
+			var parentPath = Directory.GetParent(path);
+			if (parentPath != null)
+				Directory.CreateDirectory(parentPath.FullName);
 			using (var stream = File.Create(path, 4096))
 			{
 				Export(stream);
@@ -70,7 +93,7 @@ namespace TpacTool.IO
 		}
 
 		public void CollectUniqueMaterialsAndTextures(List<Mesh> meshes, 
-			out ISet<Material> materials, out ISet<Texture> textures, int lod = 0)
+			out ISet<Material> materials, out ISet<Texture> textures)
 		{
 			materials = new HashSet<Material>();
 			textures = new HashSet<Texture>();
@@ -95,6 +118,35 @@ namespace TpacTool.IO
 					}
 				}
 			}
+		}
+
+		protected SortedDictionary<int, List<Mesh>> SortMeshesByLOD(IEnumerable<Mesh> meshes)
+		{
+			var result = new SortedDictionary<int, List<Mesh>>();
+
+			foreach (var mesh in meshes)
+			{
+				var lod = 0;
+				var matches = _meshNameRegex.Matches(mesh.Name);
+				foreach (Match match in matches)
+				{
+					// matched 
+					if (match.Success)
+					{
+						int.TryParse(match.Groups[1].Value, out lod);
+					}
+				}
+
+				if (!result.TryGetValue(lod, out var list))
+				{
+					list = new List<Mesh>();
+					result[lod] = list;
+				}
+
+				list.Add(mesh);
+			}
+
+			return result;
 		}
 	}
 }

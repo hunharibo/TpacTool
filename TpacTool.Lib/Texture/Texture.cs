@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using SystemHalf;
 using JetBrains.Annotations;
 
 namespace TpacTool.Lib
@@ -40,7 +41,7 @@ namespace TpacTool.Lib
 		 dont_resize_in_atlas 0x100
 		 */
 
-		public uint UnknownUint3 { set; get; } // always 0
+		public uint UnknownUint3 { set; get; } // always 0 before 1.7.0. always 1 since 1.7.0
 
 		public byte UnknownByte { set; get; } // always 2
 
@@ -60,6 +61,16 @@ namespace TpacTool.Lib
 		private string _rawFormat;
 
 		public uint UnknownUint5 { set; get; } // always 0
+
+		/// <summary>
+		/// Since 1.7.0. Always 4 for every texture.
+		/// </summary>
+		public uint UnknownUint6 { set; get; }
+
+		/// <summary>
+		/// Since 1.7.0. Always 1701736302 for every texture.
+		/// </summary>
+		public uint UnknownUint7 { set; get; }
 
 		public List<string> SystemFlags { set; get; }
 		/*
@@ -92,7 +103,10 @@ namespace TpacTool.Lib
 			BillboardMaterial = AssetDependence<Material>.CreateEmpty();
 			Source = String.Empty;
 			UnknownByte = 2;
+			UnknownUint3 = 1;
 			UnknownUint4 = 1;
+			UnknownUint6 = 4;
+			UnknownUint7 = 1701736302;
 		}
 
 		public override void ReadMetadata(BinaryReader stream, int totalSize)
@@ -128,9 +142,10 @@ namespace TpacTool.Lib
 
 			if (UnknownUint3 > 0)
 			{
-                var unk6 = stream.ReadUInt32();
-                var unk7 = stream.ReadUInt32();
-            }
+
+				UnknownUint6 = stream.ReadUInt32();
+				UnknownUint7 = stream.ReadUInt32();
+			}
 
 			// dirty hack for 1.5.0
 			// TW introduced a new field for the metadata of texture since 1.5.0
@@ -164,15 +179,51 @@ namespace TpacTool.Lib
 			{
 				stream.ReadBytes(32);
 			}
+		}
 
+		public override void WriteMetadata(BinaryWriter stream)
+		{
+			stream.Write((uint) 2);
+			stream.Write(BillboardMaterial.Guid);
+			stream.Write(UnknownUint1);
+			stream.WriteSizedString(Source);
+			stream.Write(UnknownUlong);
+			stream.Write(UnknownBool);
+			stream.Write(UnknownUint2);
+			stream.WriteStringList(Flags);
+			stream.Write(UnknownUint3);
+			stream.Write(UnknownByte);
+			stream.Write(Width);
+			stream.Write(Height);
+			stream.Write(UnknownUint4);
+			stream.Write(MipmapCount);
+			stream.Write(ArrayCount);
+			stream.WriteSizedString(Format.ToString());
+			stream.Write(UnknownUint5);
+			stream.WriteStringList(SystemFlags);
+
+			if (UnknownUint3 > 0)
+			{
+				stream.Write(UnknownUint6);
+				stream.Write(UnknownUint7);
+			}
+			
+			stream.Write(GeneratedAssets.Count);
+			for (var i = 0; i < GeneratedAssets.Count; i++)
+			{
+				var tuple = GeneratedAssets[i];
+				stream.Write(tuple.Item1);
+				stream.Write(tuple.Item2);
+			}
+
+			stream.Write(UnknownUlong2);
 		}
 
 		public override void ConsumeDataSegments(AbstractExternalLoader[] externalData)
 		{
 			foreach (var externalLoader in externalData)
 			{
-				var pixelData = externalLoader as ExternalLoader<TexturePixelData>;
-				if (pixelData != null)
+				if (externalLoader is ExternalLoader<TexturePixelData> pixelData)
 				{
 					var ud = pixelData.UserData;
 					ud[TexturePixelData.KEY_WIDTH] = (int) Width;
@@ -182,6 +233,9 @@ namespace TpacTool.Lib
 					ud[TexturePixelData.KEY_FORMAT] = Format;
 					TexturePixels = pixelData;
 				}
+				/*else if (externalLoader is ExternalLoader<TextureImportSettingsData> importSetting)
+				{
+				}*/
 			}
 			base.ConsumeDataSegments(externalData);
 		}
