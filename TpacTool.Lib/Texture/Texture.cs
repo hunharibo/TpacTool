@@ -126,6 +126,12 @@ namespace TpacTool.Lib
 			UnknownUint5 = stream.ReadUInt32();
 			SystemFlags = stream.ReadStringList();
 
+			if (UnknownUint3 > 0)
+			{
+                var unk6 = stream.ReadUInt32();
+                var unk7 = stream.ReadUInt32();
+            }
+
 			// dirty hack for 1.5.0
 			// TW introduced a new field for the metadata of texture since 1.5.0
 			// but they didn't bump the version of metadata
@@ -135,25 +141,30 @@ namespace TpacTool.Lib
 			if (version >= 1 || totalSize - (stream.BaseStream.Position - pos) == 4)
 			{
 				var numPair = stream.ReadUInt32();
-				for (int i = 0; i < numPair; i++)
+				/*for (int i = 0; i < numPair; i++)
 				{
 					stream.ReadBytes(4);
-				}
-				var assert = stream.BaseStream.Position == pos + totalSize;
+				}*/
+				for (int i = 0; i < numPair; i++)
+				{
+                    GeneratedAssets.Add(Tuple.Create(stream.ReadGuid(), stream.ReadGuid()));
+                }
+				/*var assert = stream.BaseStream.Position == pos + totalSize;
                 if (!assert)
                 {
-					for (int i = 0; i < numPair; i++)
-					{
-						stream.ReadBytes(8);
-					}
-				}
+				}*/
 			}
-			/*
+
 			if (version >= 2)
 			{
-				var UnknownUlong2 = stream.ReadUInt64();
+                stream.ReadBytes(8);
+            }
+
+			if (version >= 3)
+			{
+				stream.ReadBytes(32);
 			}
-			*/
+
 		}
 
 		public override void ConsumeDataSegments(AbstractExternalLoader[] externalData)
