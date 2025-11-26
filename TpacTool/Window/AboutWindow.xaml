@@ -19,7 +19,7 @@
                 <TextBlock Text="{x:Static loc:Resources.About_Author}"/>
                 <LineBreak />
                 <TextBlock Text="{x:Static loc:Resources.About_Version}"/>
-                <TextBlock Text="0.4.1"/>
+                <TextBlock Text="0.4.2"/>
                 <LineBreak />
                 <TextBlock Text="{x:Static loc:Resources.About_Website}"/>
                 <Hyperlink NavigateUri="https://github.com/hunharibo/TpacTool" RequestNavigate="Hyperlink_OnRequestNavigate">

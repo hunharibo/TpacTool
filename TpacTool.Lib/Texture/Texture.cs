@@ -109,79 +109,97 @@ namespace TpacTool.Lib
 			UnknownUint7 = 1701736302;
 		}
 
-		public override void ReadMetadata(BinaryReader stream, int totalSize)
-		{
-			var pos = stream.BaseStream.Position;
-			var version = stream.ReadUInt32();
-			BillboardMaterial = new AssetDependence<Material>(stream.ReadGuid());
-			UnknownUint1 = stream.ReadUInt32();
-			Source = stream.ReadSizedString();
-			UnknownUlong = stream.ReadUInt64();
-			UnknownBool = stream.ReadBoolean();
-			UnknownUint2 = stream.ReadUInt32();
-			Flags = stream.ReadStringList();
-			UnknownUint3 = stream.ReadUInt32();
+        public override void ReadMetadata(BinaryReader stream, int totalSize)
+        {
+            var startPos = stream.BaseStream.Position;
 
-			UnknownByte = stream.ReadByte();
-			Width = stream.ReadUInt32();
-			Height = stream.ReadUInt32();
-			UnknownUint4 = stream.ReadUInt32();
-			MipmapCount = stream.ReadByte();
-			ArrayCount = stream.ReadUInt16();
-			_rawFormat = stream.ReadSizedString();
-			if (TextureFormat.TryParse(_rawFormat, true, out TextureFormat format))
-			{
-				Format = format;
-			}
-			else
-			{
-				Format = TextureFormat.UNKNOWN;
-			}
-			UnknownUint5 = stream.ReadUInt32();
-			SystemFlags = stream.ReadStringList();
+            var version = stream.ReadUInt32();
+            BillboardMaterial = new AssetDependence<Material>(stream.ReadGuid());
+            UnknownUint1 = stream.ReadUInt32();
+            Source = stream.ReadSizedString();
+            UnknownUlong = stream.ReadUInt64();
+            UnknownBool = stream.ReadBoolean();
+            UnknownUint2 = stream.ReadUInt32();
+            Flags = stream.ReadStringList();
+            UnknownUint3 = stream.ReadUInt32();
 
-			if (UnknownUint3 > 0)
-			{
+            UnknownByte = stream.ReadByte();
+            Width = stream.ReadUInt32();
+            Height = stream.ReadUInt32();
+            UnknownUint4 = stream.ReadUInt32();
+            MipmapCount = stream.ReadByte();
+            ArrayCount = stream.ReadUInt16();
+            _rawFormat = stream.ReadSizedString();
+            if (TextureFormat.TryParse(_rawFormat, true, out TextureFormat format))
+            {
+                Format = format;
+            }
+            else
+            {
+                Format = TextureFormat.UNKNOWN;
+            }
+            UnknownUint5 = stream.ReadUInt32();
+            SystemFlags = stream.ReadStringList();
 
-				UnknownUint6 = stream.ReadUInt32();
-				UnknownUint7 = stream.ReadUInt32();
-			}
-
-			// dirty hack for 1.5.0
-			// TW introduced a new field for the metadata of texture since 1.5.0
-			// but they didn't bump the version of metadata
-
-			//Additional dirty hack for 1.7.0 - there are no longer any GUIDs.
-			GeneratedAssets = new List<Tuple<Guid, Guid>>();
-			if (version >= 1 || totalSize - (stream.BaseStream.Position - pos) == 4)
-			{
-				var numPair = stream.ReadUInt32();
-				/*for (int i = 0; i < numPair; i++)
-				{
-					stream.ReadBytes(4);
-				}*/
-				for (int i = 0; i < numPair; i++)
-				{
-                    GeneratedAssets.Add(Tuple.Create(stream.ReadGuid(), stream.ReadGuid()));
-                }
-				/*var assert = stream.BaseStream.Position == pos + totalSize;
-                if (!assert)
-                {
-				}*/
-			}
-
-			if (version >= 2)
-			{
-                stream.ReadBytes(8);
+            if (UnknownUint3 > 0)
+            {
+                UnknownUint6 = stream.ReadUInt32();
+                UnknownUint7 = stream.ReadUInt32();
             }
 
-			if (version >= 3)
-			{
-				stream.ReadBytes(32);
-			}
-		}
+            // Handle generated assets (since version 1 or when there's exactly 4 bytes remaining)
+            GeneratedAssets = new List<Tuple<Guid, Guid>>();
+            var currentPos = stream.BaseStream.Position;
+            var bytesRead = currentPos - startPos;
+            var remaining = totalSize - bytesRead;
 
-		public override void WriteMetadata(BinaryWriter stream)
+            // Check if we should read generated assets
+            if (version >= 1 || remaining == 4)
+            {
+                var numPair = stream.ReadUInt32();
+                for (int i = 0; i < numPair; i++)
+                {
+                    GeneratedAssets.Add(Tuple.Create(stream.ReadGuid(), stream.ReadGuid()));
+                }
+            }
+
+            // Handle version 2 and 3 fields
+            currentPos = stream.BaseStream.Position;
+            bytesRead = currentPos - startPos;
+            remaining = totalSize - bytesRead;
+
+            if (version >= 2 && remaining >= 8)
+            {
+                UnknownUlong2 = stream.ReadUInt64();
+                remaining -= 8;
+            }
+
+            if (version >= 3 && remaining >= 32)
+            {
+                stream.ReadBytes(32);
+                remaining -= 32;
+            }
+
+            // Ensure we consume exactly totalSize bytes by reading any remaining data
+            currentPos = stream.BaseStream.Position;
+            bytesRead = currentPos - startPos;
+            remaining = totalSize - bytesRead;
+
+            if (remaining > 0)
+            {
+                stream.ReadBytes((int)remaining);
+            }
+            else if (remaining < 0)
+            {
+#if DEBUG
+				// This indicates we read too much - this is a serious error
+				throw new InvalidDataException($"Texture metadata read {-remaining} bytes beyond expected size. " +
+                    $"Asset: {Name}, Expected: {totalSize}, Position: {currentPos}, Start: {startPos}");
+#endif
+            }
+        }
+
+        public override void WriteMetadata(BinaryWriter stream)
 		{
 			stream.Write((uint) 2);
 			stream.Write(BillboardMaterial.Guid);

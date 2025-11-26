@@ -141,10 +141,21 @@ namespace TpacTool.Lib
 				assetItem.Name = stream.ReadSizedString();
 
 				var metadataSize = stream.ReadUInt64();
-				stream.RecordPosition();
+                var metadataStartPos = stream.BaseStream.Position;
+
+                stream.RecordPosition();
 				assetItem.ReadMetadata(stream, (int)metadataSize);
 				stream.AssertLength((long)metadataSize);
-				var unknownMetadataChecknum = stream.ReadInt64();
+
+                var expectedPos = metadataStartPos + (long)metadataSize;
+                var actualPos = stream.BaseStream.Position;
+                if (actualPos != expectedPos)
+                {
+                    // Force alignment if metadata reading didn't consume exact size
+                    stream.BaseStream.Seek(expectedPos, SeekOrigin.Begin);
+                }
+
+                var unknownMetadataChecknum = stream.ReadInt64();
 
 				var dataSegmentNum = stream.ReadInt32();
 				var segments = new AbstractExternalLoader[dataSegmentNum];
